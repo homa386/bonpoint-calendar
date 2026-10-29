@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>営業日カレンダー作成</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf7f2;
+    --panel: #ffffff;
+    --text: #3b2f25;
+    --muted: #8a7a6b;
+    --accent: #8b6b4a;
+    --border: #e6dccf;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Zen Maru Gothic", system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 16px;
+    display: grid;
+    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  @media (min-width: 860px) {
+    main { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+  }
+  h1 { font-size: 20px; margin: 4px 0 0; }
+  .lead { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+  .preview canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    display: grid;
+    gap: 14px;
+  }
+  .row { display: grid; gap: 6px; }
+  .row > span { font-size: 13px; color: var(--muted); }
+  .inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .month-nav { display: flex; align-items: center; gap: 8px; }
+  .month-nav strong { flex: 1; text-align: center; font-size: 18px; }
+  button, select, input[type=text] {
+    font: inherit;
+    font-size: 15px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+  }
+  button { cursor: pointer; }
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .weekdays button { padding: 8px 0; }
+  .weekdays button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  input[type=color] { width: 44px; height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: none; }
+  input[type=text] { width: 100%; }
+  .hint { font-size: 12px; color: var(--muted); margin: 0; }
+  details summary { cursor: pointer; font-size: 14px; color: var(--muted); }
+  details[open] summary { margin-bottom: 10px; }
+  details .row + .row { margin-top: 12px; }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <h1>営業日カレンダー作成</h1>
+    <p class="lead">カレンダーの日付をタップすると「休」が付きます。もう一度タップで解除。</p>
+  </section>
+
+  <section class="preview" style="grid-row: span 2;">
+    <canvas id="cv" width="1080" height="1350" aria-label="カレンダープレビュー"></canvas>
+  </section>
+
+  <section class="panel">
+    <div class="month-nav">
+      <button id="prev" aria-label="前の月">◀</button>
+      <strong id="monthLabel"></strong>
+      <button id="next" aria-label="次の月">▶</button>
+    </div>
+
+    <div class="row">
+      <span>定休日（曜日でまとめて設定）</span>
+      <div class="weekdays" id="weekdays"></div>
+    </div>
+
+    <div class="inline">
+      <button id="clear">この月の休みをクリア</button>
+    </div>
+
+    <button class="primary" id="download">画像を保存（PNG）</button>
+    <p class="hint">スマホでは共有メニューが開くので「画像を保存」を選んでください。</p>
+
+    <details>
+      <summary>デザイン設定（最初に一度だけ）</summary>
+      <div class="row">
+        <span>ロゴ画像（PNG推奨・背景透過）</span>
+        <input type="file" id="logo" accept="image/*">
+        <div class="inline"><button id="logoRemove">ロゴを外す</button></div>
+        <p class="hint">ロゴはこの端末のブラウザに保存されます。</p>
+      </div>
+      <div class="row">
+        <span>ロゴがない時の店名表示</span>
+        <input type="text" id="shopName">
+      </div>
+      <div class="row">
+        <span>下部のお知らせ文</span>
+        <input type="text" id="note">
+      </div>
+      <div class="row">
+        <span>画像サイズ</span>
+        <select id="size">
+          <option value="1080x1350">縦長 1080×1350（Instagram投稿）</option>
+          <option value="1080x1080">正方形 1080×1080</option>
+          <option value="1080x1920">ストーリーズ 1080×1920</option>
+        </select>
+      </div>
+      <div class="row">
+        <span>「休」の表示</span>
+        <select id="mark">
+          <option value="kyu">丸の中に「休」</option>
+          <option value="dateKyu">丸の中に日付＋「休」</option>
+        </select>
+      </div>
+      <div class="row">
+        <span>色（背景・文字/丸）</span>
+        <div class="inline">
+          <input type="color" id="bgColor" aria-label="背景色">
+          <input type="color" id="mainColor" aria-label="文字と丸の色">
+          <button id="resetColors">元に戻す</button>
+        </div>
+      </div>
+    </details>
+  </section>
+</main>
+
+<script>
+(() => {
+  const DEFAULTS = {
+    bgColor: '#f1e9dc',
+    mainColor: '#7a5a3f',
+    shopName: 'Bonpoint',
+    note: '■ はお休みです',
+    size: '1080x1350',
+    mark: 'kyu',
+  };
+  const WEEK_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const WEEK_JA = ['日', '月', '火', '水', '木', '金', '土'];
+  const MONTH_EN = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+
+  const store = {
+    get(key, fallback) {
+      try { const v = localStorage.getItem('bpcal:' + key); return v == null ? fallback : JSON.parse(v); }
+      catch { return fallback; }
+    },
+    set(key, value) {
+      try { localStorage.setItem('bpcal:' + key, JSON.stringify(value)); } catch {}
+    },
+  };
+
+  const settings = Object.assign({}, DEFAULTS, store.get('settings', {}));
+  const holidays = store.get('holidays', {}); // { 'YYYY-MM': [day, ...] }
+  let logoImg = null;
+
+  const today = new Date();
+  let year = today.getFullYear();
+  let month = today.getMonth() + 1; // show next month by default
+  if (month > 11) { month = 0; year++; }
+
+  const $ = (id) => document.getElementById(id);
+  const cv = $('cv');
+  const ctx = cv.getContext('2d');
+  let cells = []; // hit areas for tapping
+
+  const key = () => `${year}-${String(month + 1).padStart(2, '0')}`;
+  const offDays = () => new Set(holidays[key()] || []);
+  const saveOff = (set) => {
+    holidays[key()] = [...set].sort((a, b) => a - b);
+    store.set('holidays', holidays);
+  };
+  const saveSettings = () => store.set('settings', settings);
+
+  function loadLogo(src) {
+    if (!src) { logoImg = null; draw(); return; }
+    const img = new Image();
+    img.onload = () => { logoImg = img; draw(); };
+    img.src = src;
+  }
+
+  function draw() {
+    const [W, H] = settings.size.split('x').map(Number);
+    cv.width = W; cv.height = H;
+    const main = settings.mainColor;
+    const bg = settings.bgColor;
+    const serif = '"Cormorant Garamond", Georgia, serif';
+    const maru = '"Zen Maru Gothic", sans-serif';
+
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const pad = 80;
+    let y = H >= 1900 ? 220 : (H > 1100 ? 110 : 70);
+
+    // Logo or shop name
+    const logoH = H > 1100 ? 130 : 100;
+    if (logoImg) {
+      const ratio = logoImg.width / logoImg.height;
+      let lh = logoH, lw = lh * ratio;
+      const maxW = W * 0.6;
+      if (lw > maxW) { lw = maxW; lh = lw / ratio; }
+      ctx.drawImage(logoImg, (W - lw) / 2, y + (logoH - lh) / 2, lw, lh);
+    } else {
+      ctx.fillStyle = main;
+      ctx.font = `600 ${Math.round(logoH * 0.7)}px ${serif}`;
+      ctx.fillText(settings.shopName, W / 2, y + logoH / 2);
+    }
+    y += logoH + (H > 1100 ? 50 : 30);
+
+    // Month title
+    ctx.fillStyle = main;
+    ctx.font = `600 96px ${serif}`;
+    ctx.fillText(`${year}.${month + 1}`, W / 2, y + 40);
+    y += 100;
+    ctx.font = `500 30px ${serif}`;
+    ctx.fillText(MONTH_EN[month].split('').join(' '), W / 2, y + 10);
+    y += 50;
+
+    // Divider
+    ctx.strokeStyle = main;
+    ctx.globalAlpha = 0.4;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke();
+    ctx.globalAlpha = 1;
+    y += 50;
+
+    // Weekday header
+    const colW = (W - pad * 2) / 7;
+    ctx.font = `600 30px ${serif}`;
+    for (let i = 0; i < 7; i++) {
+      ctx.fillText(WEEK_EN[i], pad + colW * (i + 0.5), y);
+    }
+    y += 50;
+
+    // Grid
+    const first = new Date(year, month, 1).getDay();
+    const days = new Date(year, month + 1, 0).getDate();
+    const rows = Math.ceil((first + days) / 7);
+    const footer = 120;
+    const rowH = Math.min(colW, (H - y - footer) / rows);
+    const r = Math.min(colW, rowH) * 0.4;
+    const off = offDays();
+    cells = [];
+
+    for (let d = 1; d <= days; d++) {
+      const idx = first + d - 1;
+      const cx = pad + colW * (idx % 7 + 0.5);
+      const cy = y + rowH * (Math.floor(idx / 7) + 0.5);
+      cells.push({ d, x: cx - colW / 2, y: cy - rowH / 2, w: colW, h: rowH });
+
+      if (off.has(d)) {
+        ctx.fillStyle = main;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = bg;
+        if (settings.mark === 'dateKyu') {
+          ctx.font = `600 ${Math.round(r * 0.8)}px ${serif}`;
+          ctx.fillText(String(d), cx, cy - r * 0.22);
+          ctx.font = `700 ${Math.round(r * 0.5)}px ${maru}`;
+          ctx.fillText('休', cx, cy + r * 0.45);
+        } else {
+          ctx.font = `700 ${Math.round(r * 0.95)}px ${maru}`;
+          ctx.fillText('休', cx, cy + r * 0.04);
+        }
+      } else {
+        ctx.fillStyle = main;
+        ctx.font = `600 ${Math.round(r * 0.95)}px ${serif}`;
+        ctx.fillText(String(d), cx, cy);
+      }
+    }
+
+    // Footer note with legend circle
+    if (settings.note) {
+      const fy = H - (H >= 1900 ? 220 : 70);
+      ctx.font = `500 30px ${maru}`;
+      const text = settings.note.replace(/^■\s*/, '');
+      const hasLegend = settings.note.startsWith('■');
+      const tw = ctx.measureText(text).width;
+      const lr = 18;
+      const total = tw + (hasLegend ? lr * 2 + 14 : 0);
+      let x = (W - total) / 2;
+      if (hasLegend) {
+        ctx.fillStyle = main;
+        ctx.beginPath(); ctx.arc(x + lr, fy, lr, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = bg;
+        ctx.font = `700 22px ${maru}`;
+        ctx.fillText('休', x + lr, fy + 1);
+        x += lr * 2 + 14;
+      }
+      ctx.fillStyle = main;
+      ctx.font = `500 30px ${maru}`;
+      ctx.textAlign = 'left';
+      ctx.fillText(text, x, fy);
+      ctx.textAlign = 'center';
+    }
+
+    $('monthLabel').textContent = `${year}年${month + 1}月`;
+    renderWeekdayButtons();
+  }
+
+  function renderWeekdayButtons() {
+    const wrap = $('weekdays');
+    const off = offDays();
+    const days = new Date(year, month + 1, 0).getDate();
+    wrap.innerHTML = '';
+    WEEK_JA.forEach((label, wd) => {
+      const dates = [];
+      for (let d = 1; d <= days; d++) if (new Date(year, month, d).getDay() === wd) dates.push(d);
+      const allOn = dates.every((d) => off.has(d));
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.className = allOn ? 'on' : '';
+      b.setAttribute('aria-pressed', allOn);
+      b.onclick = () => {
+        const set = offDays();
+        dates.forEach((d) => (allOn ? set.delete(d) : set.add(d)));
+        saveOff(set);
+        draw();
+      };
+      wrap.appendChild(b);
+    });
+  }
+
+  cv.addEventListener('click', (e) => {
+    const rect = cv.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (cv.width / rect.width);
+    const y = (e.clientY - rect.top) * (cv.height / rect.height);
+    const hit = cells.find((c) => x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h);
+    if (!hit) return;
+    const set = offDays();
+    set.has(hit.d) ? set.delete(hit.d) : set.add(hit.d);
+    saveOff(set);
+    draw();
+  });
+
+  $('prev').onclick = () => { month--; if (month < 0) { month = 11; year--; } draw(); };
+  $('next').onclick = () => { month++; if (month > 11) { month = 0; year++; } draw(); };
+  $('clear').onclick = () => {
+    if (confirm(`${year}年${month + 1}月の休みをすべて外しますか？`)) { saveOff(new Set()); draw(); }
+  };
+
+  $('download').onclick = () => {
+    cv.toBlob(async (blob) => {
+      const name = `calendar-${key()}.png`;
+      const file = new File([blob], name, { type: 'image/png' });
+      // iPhone/Android: open the share sheet so the image can go straight to Photos
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file] }); return; }
+        catch (err) { if (err.name === 'AbortError') return; }
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }, 'image/png');
+  };
+
+  $('logo').onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try { localStorage.setItem('bpcal:logo', reader.result); } catch {}
+      loadLogo(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+  $('logoRemove').onclick = () => {
+    try { localStorage.removeItem('bpcal:logo'); } catch {}
+    $('logo').value = '';
+    loadLogo(null);
+  };
+
+  for (const id of ['shopName', 'note', 'size', 'mark', 'bgColor', 'mainColor']) {
+    const el = $(id);
+    el.value = settings[id];
+    el.addEventListener('input', () => { settings[id] = el.value; saveSettings(); draw(); });
+  }
+  $('resetColors').onclick = () => {
+    settings.bgColor = DEFAULTS.bgColor; settings.mainColor = DEFAULTS.mainColor;
+    $('bgColor').value = DEFAULTS.bgColor; $('mainColor').value = DEFAULTS.mainColor;
+    saveSettings(); draw();
+  };
+
+  draw();
+  let logoSrc = null;
+  try { logoSrc = localStorage.getItem('bpcal:logo'); } catch {}
+  if (logoSrc) loadLogo(logoSrc);
+  // Redraw once web fonts are ready so the canvas uses them
+  Promise.all([
+    document.fonts.load('600 96px "Cormorant Garamond"'),
+    document.fonts.load('700 40px "Zen Maru Gothic"', '休'),
+  ]).catch(() => {}).finally(draw);
+})();
+</script>
+</body>
+</html>
