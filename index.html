@@ -6,26 +6,27 @@
 <title>営業日カレンダー作成</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #faf7f2;
+    --bg: #f8f4ec;
     --panel: #ffffff;
-    --text: #3b2f25;
-    --muted: #8a7a6b;
-    --accent: #8b6b4a;
-    --border: #e6dccf;
+    --text: #545454;
+    --muted: #8c857b;
+    --accent: #b8aa92;
+    --accent-dark: #8f8169;
+    --border: #e4ddd0;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: "Zen Maru Gothic", system-ui, sans-serif;
+    font-family: "Noto Sans JP", system-ui, sans-serif;
     -webkit-tap-highlight-color: transparent;
   }
   main {
-    max-width: 1080px;
+    max-width: 1000px;
     margin: 0 auto;
     padding: 16px;
     display: grid;
@@ -34,15 +35,16 @@
   }
   @media (min-width: 860px) {
     main { grid-template-columns: minmax(0, 1fr) 320px; align-items: start; }
+    .intro { grid-column: 1 / -1; }
   }
-  h1 { font-size: 20px; margin: 4px 0 0; }
+  h1 { font-size: 20px; font-weight: 700; margin: 4px 0 0; }
   .lead { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
   .preview canvas {
     width: 100%;
     height: auto;
     display: block;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    border-radius: 6px;
+    box-shadow: 0 2px 14px rgba(0, 0, 0, .1);
     cursor: pointer;
     touch-action: manipulation;
   }
@@ -54,49 +56,48 @@
     display: grid;
     gap: 14px;
   }
-  .row { display: grid; gap: 6px; }
-  .row > span { font-size: 13px; color: var(--muted); }
-  .inline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .month-nav { display: flex; align-items: center; gap: 8px; }
-  .month-nav strong { flex: 1; text-align: center; font-size: 18px; }
-  button, select, input[type=text] {
+  .month-nav strong { flex: 1; text-align: center; font-size: 19px; }
+  button, textarea {
     font: inherit;
     font-size: 15px;
-    padding: 8px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: #fff;
     color: var(--text);
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
   }
-  button { cursor: pointer; }
+  button { padding: 8px 12px; cursor: pointer; }
+  button:disabled { opacity: .4; cursor: default; }
   button.primary {
-    background: var(--accent);
+    background: var(--accent-dark);
+    border-color: var(--accent-dark);
     color: #fff;
-    border-color: var(--accent);
-    padding: 12px;
+    padding: 13px;
     font-size: 16px;
     font-weight: 700;
   }
+  .status { margin: 0; font-size: 13px; color: var(--muted); text-align: center; min-height: 1.5em; }
+  .hint { margin: 0; font-size: 12px; color: var(--muted); }
   .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
   .weekdays button { padding: 8px 0; }
-  .weekdays button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
-  input[type=color] { width: 44px; height: 36px; padding: 0; border: 1px solid var(--border); border-radius: 8px; background: none; }
-  input[type=text] { width: 100%; }
-  .hint { font-size: 12px; color: var(--muted); margin: 0; }
+  .weekdays button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  textarea { width: 100%; padding: 8px 10px; line-height: 1.6; resize: vertical; }
   details summary { cursor: pointer; font-size: 14px; color: var(--muted); }
-  details[open] summary { margin-bottom: 10px; }
-  details .row + .row { margin-top: 12px; }
+  details[open] summary { margin-bottom: 12px; }
+  .field { display: grid; gap: 6px; }
+  .field + .field { margin-top: 16px; }
+  .field > span { font-size: 13px; color: var(--muted); }
 </style>
 </head>
 <body>
 <main>
-  <section>
+  <section class="intro">
     <h1>営業日カレンダー作成</h1>
-    <p class="lead">カレンダーの日付をタップすると「休」が付きます。もう一度タップで解除。</p>
+    <p class="lead">定休日（月・火）は最初から「休」が付いています。日付をタップすると「休」の付け外しができます。</p>
   </section>
 
-  <section class="preview" style="grid-row: span 2;">
-    <canvas id="cv" width="1080" height="1350" aria-label="カレンダープレビュー"></canvas>
+  <section class="preview">
+    <canvas id="cv" width="1080" height="1350" aria-label="カレンダーのプレビュー"></canvas>
   </section>
 
   <section class="panel">
@@ -105,57 +106,21 @@
       <strong id="monthLabel"></strong>
       <button id="next" aria-label="次の月">▶</button>
     </div>
-
-    <div class="row">
-      <span>定休日（曜日でまとめて設定）</span>
-      <div class="weekdays" id="weekdays"></div>
-    </div>
-
-    <div class="inline">
-      <button id="clear">この月の休みをクリア</button>
-    </div>
-
-    <button class="primary" id="download">画像を保存（PNG）</button>
+    <p class="status" id="status"></p>
+    <button id="reset">定休日だけの状態に戻す</button>
+    <button class="primary" id="download">画像を保存</button>
     <p class="hint">スマホでは共有メニューが開くので「画像を保存」を選んでください。</p>
 
     <details>
-      <summary>デザイン設定（最初に一度だけ）</summary>
-      <div class="row">
-        <span>ロゴ画像（PNG推奨・背景透過）</span>
-        <input type="file" id="logo" accept="image/*">
-        <div class="inline"><button id="logoRemove">ロゴを外す</button></div>
-        <p class="hint">ロゴはこの端末のブラウザに保存されます。</p>
+      <summary>設定（定休日・営業時間）</summary>
+      <div class="field">
+        <span>定休日（毎月自動で「休」が付く曜日）</span>
+        <div class="weekdays" id="weekly"></div>
       </div>
-      <div class="row">
-        <span>ロゴがない時の店名表示</span>
-        <input type="text" id="shopName">
-      </div>
-      <div class="row">
-        <span>下部のお知らせ文</span>
-        <input type="text" id="note">
-      </div>
-      <div class="row">
-        <span>画像サイズ</span>
-        <select id="size">
-          <option value="1080x1350">縦長 1080×1350（Instagram投稿）</option>
-          <option value="1080x1080">正方形 1080×1080</option>
-          <option value="1080x1920">ストーリーズ 1080×1920</option>
-        </select>
-      </div>
-      <div class="row">
-        <span>「休」の表示</span>
-        <select id="mark">
-          <option value="kyu">丸の中に「休」</option>
-          <option value="dateKyu">丸の中に日付＋「休」</option>
-        </select>
-      </div>
-      <div class="row">
-        <span>色（背景・文字/丸）</span>
-        <div class="inline">
-          <input type="color" id="bgColor" aria-label="背景色">
-          <input type="color" id="mainColor" aria-label="文字と丸の色">
-          <button id="resetColors">元に戻す</button>
-        </div>
+      <div class="field">
+        <span>営業時間（1行ごとに「曜日 時間」）</span>
+        <textarea id="hours" rows="2"></textarea>
+        <button id="hoursReset">元に戻す</button>
       </div>
     </details>
   </section>
@@ -164,17 +129,29 @@
 <script>
 (() => {
   const DEFAULTS = {
-    bgColor: '#f1e9dc',
-    mainColor: '#7a5a3f',
-    shopName: 'Bonpoint',
-    note: '■ はお休みです',
-    size: '1080x1350',
-    mark: 'kyu',
+    weekly: [1, 2], // 月・火
+    hours: '水〜日 17:00〜21:00 L.O.20:30',
   };
-  const WEEK_EN = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const WEEK_JA = ['日', '月', '火', '水', '木', '金', '土'];
-  const MONTH_EN = ['JANUARY','FEBRUARY','MARCH','APRIL','MAY','JUNE','JULY','AUGUST','SEPTEMBER','OCTOBER','NOVEMBER','DECEMBER'];
+  const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+  const LOGO = 'data:image/png;base64,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';
 
+  // ---- Design (measured from the original 1080×1350 calendar) ----
+  const COLOR = {
+    bg: '#f8f4ec',
+    cell: '#ffffff',
+    line: '#b4b5b4',
+    text: '#545454',
+    sun: '#cd7574',
+    sat: '#9ea1df',
+    mark: '#b8aa92',
+    markText: '#ffffff',
+  };
+  const FONT = '"Noto Sans JP", sans-serif';
+  const W = 1080, H = 1350;
+  const GRID = { left: 108, right: 971, top: 328, headBottom: 408, bottom: 1191 };
+  const ROW_H = 156.6; // row height of a 5-week month
+
+  // ---- Storage ----
   const store = {
     get(key, fallback) {
       try { const v = localStorage.getItem('bpcal:' + key); return v == null ? fallback : JSON.parse(v); }
@@ -184,178 +161,207 @@
       try { localStorage.setItem('bpcal:' + key, JSON.stringify(value)); } catch {}
     },
   };
-
   const settings = Object.assign({}, DEFAULTS, store.get('settings', {}));
-  const holidays = store.get('holidays', {}); // { 'YYYY-MM': [day, ...] }
-  let logoImg = null;
+  const edited = store.get('closed', {}); // 'YYYY-MM' -> [day, ...]; months not here use the weekly holidays
 
+  // ---- Japanese national holidays (current law) ----
+  const holidayCache = {};
+  function holidaysOf(y) {
+    if (holidayCache[y]) return holidayCache[y];
+    const nthMonday = (m, n) => 1 + (8 - new Date(y, m, 1).getDay()) % 7 + (n - 1) * 7;
+    const t = y - 1980, leap = Math.floor(t / 4);
+    const base = [
+      [0, 1], [0, nthMonday(0, 2)], [1, 11], [1, 23],
+      [2, Math.floor(20.8431 + 0.242194 * t - leap)],
+      [3, 29], [4, 3], [4, 4], [4, 5], [6, nthMonday(6, 3)], [7, 11],
+      [8, nthMonday(8, 3)], [8, Math.floor(23.2488 + 0.242194 * t - leap)],
+      [9, nthMonday(9, 2)], [10, 3], [10, 23],
+    ].map(([m, d]) => new Date(y, m, d));
+    const k = (dt) => `${dt.getMonth()}-${dt.getDate()}`;
+    const shift = (dt, n) => new Date(dt.getFullYear(), dt.getMonth(), dt.getDate() + n);
+    const set = new Set(base.map(k));
+    for (const dt of base) {
+      // 振替休日: a holiday on Sunday moves to the next non-holiday
+      if (dt.getDay() === 0) {
+        let next = shift(dt, 1);
+        while (set.has(k(next))) next = shift(next, 1);
+        set.add(k(next));
+      }
+      // 国民の休日: a day sandwiched between two holidays
+      const mid = shift(dt, 1);
+      if (!set.has(k(mid)) && base.some((o) => k(o) === k(shift(dt, 2)))) set.add(k(mid));
+    }
+    return (holidayCache[y] = set);
+  }
+  const isHoliday = (y, m, d) => holidaysOf(y).has(`${m}-${d}`);
+
+  // ---- State ----
   const today = new Date();
   let year = today.getFullYear();
-  let month = today.getMonth() + 1; // show next month by default
+  let month = today.getMonth() + 1; // next month by default
   if (month > 11) { month = 0; year++; }
 
   const $ = (id) => document.getElementById(id);
   const cv = $('cv');
   const ctx = cv.getContext('2d');
-  let cells = []; // hit areas for tapping
+  let cells = [];
 
   const key = () => `${year}-${String(month + 1).padStart(2, '0')}`;
-  const offDays = () => new Set(holidays[key()] || []);
-  const saveOff = (set) => {
-    holidays[key()] = [...set].sort((a, b) => a - b);
-    store.set('holidays', holidays);
-  };
+  const daysInMonth = () => new Date(year, month + 1, 0).getDate();
+  function weeklyClosed() {
+    const set = new Set();
+    for (let d = 1; d <= daysInMonth(); d++) {
+      if (settings.weekly.includes(new Date(year, month, d).getDay())) set.add(d);
+    }
+    return set;
+  }
+  const closedDays = () => (edited[key()] ? new Set(edited[key()]) : weeklyClosed());
+  function saveClosed(set) {
+    const weekly = weeklyClosed();
+    const same = set.size === weekly.size && [...set].every((d) => weekly.has(d));
+    if (same) delete edited[key()];
+    else edited[key()] = [...set].sort((a, b) => a - b);
+    store.set('closed', edited);
+  }
   const saveSettings = () => store.set('settings', settings);
 
-  function loadLogo(src) {
-    if (!src) { logoImg = null; draw(); return; }
-    const img = new Image();
-    img.onload = () => { logoImg = img; draw(); };
-    img.src = src;
+  // ---- Drawing ----
+  const logo = new Image();
+  logo.onload = () => draw();
+  logo.src = LOGO;
+
+  function measure(str, size, weight = 400, spacing = 0) {
+    ctx.font = `${weight} ${size}px ${FONT}`;
+    const chars = [...str];
+    if (!spacing) return ctx.measureText(str).width;
+    return chars.reduce((w, ch) => w + ctx.measureText(ch).width, 0) + spacing * (chars.length - 1);
+  }
+
+  function text(str, x, y, { size, weight = 400, color = COLOR.text, align = 'left', spacing = 0 }) {
+    ctx.font = `${weight} ${size}px ${FONT}`;
+    ctx.fillStyle = color;
+    ctx.textAlign = spacing ? 'left' : align;
+    if (!spacing) { ctx.fillText(str, x, y); return; }
+    for (const ch of str) {
+      ctx.fillText(ch, x, y);
+      x += ctx.measureText(ch).width + spacing;
+    }
+  }
+
+  function circle(cx, cy, r, kyuSize) {
+    ctx.fillStyle = COLOR.mark;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    // 「休」 sits slightly below the center, as in the original
+    text('休', cx, cy + r * 0.05 + kyuSize * 0.376, { size: kyuSize, weight: 700, color: COLOR.markText, align: 'center' });
   }
 
   function draw() {
-    const [W, H] = settings.size.split('x').map(Number);
-    cv.width = W; cv.height = H;
-    const main = settings.mainColor;
-    const bg = settings.bgColor;
-    const serif = '"Cormorant Garamond", Georgia, serif';
-    const maru = '"Zen Maru Gothic", sans-serif';
-
-    ctx.fillStyle = bg;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = COLOR.bg;
     ctx.fillRect(0, 0, W, H);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
 
-    const pad = 80;
-    let y = H >= 1900 ? 220 : (H > 1100 ? 110 : 70);
-
-    // Logo or shop name
-    const logoH = H > 1100 ? 130 : 100;
-    if (logoImg) {
-      const ratio = logoImg.width / logoImg.height;
-      let lh = logoH, lw = lh * ratio;
-      const maxW = W * 0.6;
-      if (lw > maxW) { lw = maxW; lh = lw / ratio; }
-      ctx.drawImage(logoImg, (W - lw) / 2, y + (logoH - lh) / 2, lw, lh);
-    } else {
-      ctx.fillStyle = main;
-      ctx.font = `600 ${Math.round(logoH * 0.7)}px ${serif}`;
-      ctx.fillText(settings.shopName, W / 2, y + logoH / 2);
-    }
-    y += logoH + (H > 1100 ? 50 : 30);
-
-    // Month title
-    ctx.fillStyle = main;
-    ctx.font = `600 96px ${serif}`;
-    ctx.fillText(`${year}.${month + 1}`, W / 2, y + 40);
-    y += 100;
-    ctx.font = `500 30px ${serif}`;
-    ctx.fillText(MONTH_EN[month].split('').join(' '), W / 2, y + 10);
-    y += 50;
-
-    // Divider
-    ctx.strokeStyle = main;
-    ctx.globalAlpha = 0.4;
-    ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke();
-    ctx.globalAlpha = 1;
-    y += 50;
-
-    // Weekday header
-    const colW = (W - pad * 2) / 7;
-    ctx.font = `600 30px ${serif}`;
-    for (let i = 0; i < 7; i++) {
-      ctx.fillText(WEEK_EN[i], pad + colW * (i + 0.5), y);
-    }
-    y += 50;
+    // Header
+    if (logo.complete && logo.naturalWidth) ctx.drawImage(logo, 62, 86);
+    text('営業日カレンダー', 107.5, 255.2, { size: 53, weight: 300, spacing: 5.6 });
+    text(String(year), 912 - measure(String(year), 32, 200, -1.3), 128, { size: 32, weight: 200, spacing: -1.3 });
+    text(String(month + 1), 914.5, 277.1, { size: 168, weight: 300, align: 'right' });
 
     // Grid
     const first = new Date(year, month, 1).getDay();
-    const days = new Date(year, month + 1, 0).getDate();
+    const days = daysInMonth();
     const rows = Math.ceil((first + days) / 7);
-    const footer = 120;
-    const rowH = Math.min(colW, (H - y - footer) / rows);
-    const r = Math.min(colW, rowH) * 0.4;
-    const off = offDays();
-    cells = [];
+    const colW = (GRID.right - GRID.left) / 7;
+    const rowH = (GRID.bottom - GRID.headBottom) / rows;
+    const s = Math.min(1, rowH / ROW_H);
 
-    for (let d = 1; d <= days; d++) {
-      const idx = first + d - 1;
-      const cx = pad + colW * (idx % 7 + 0.5);
-      const cy = y + rowH * (Math.floor(idx / 7) + 0.5);
-      cells.push({ d, x: cx - colW / 2, y: cy - rowH / 2, w: colW, h: rowH });
-
-      if (off.has(d)) {
-        ctx.fillStyle = main;
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = bg;
-        if (settings.mark === 'dateKyu') {
-          ctx.font = `600 ${Math.round(r * 0.8)}px ${serif}`;
-          ctx.fillText(String(d), cx, cy - r * 0.22);
-          ctx.font = `700 ${Math.round(r * 0.5)}px ${maru}`;
-          ctx.fillText('休', cx, cy + r * 0.45);
-        } else {
-          ctx.font = `700 ${Math.round(r * 0.95)}px ${maru}`;
-          ctx.fillText('休', cx, cy + r * 0.04);
-        }
-      } else {
-        ctx.fillStyle = main;
-        ctx.font = `600 ${Math.round(r * 0.95)}px ${serif}`;
-        ctx.fillText(String(d), cx, cy);
-      }
+    ctx.fillStyle = COLOR.cell;
+    ctx.fillRect(GRID.left, GRID.top, GRID.right - GRID.left, GRID.bottom - GRID.top);
+    ctx.fillStyle = COLOR.line;
+    for (let i = 0; i <= 7; i++) {
+      ctx.fillRect(Math.floor(GRID.left + colW * i), GRID.top, 1, GRID.bottom - GRID.top + 1);
+    }
+    ctx.fillRect(GRID.left, GRID.top, GRID.right - GRID.left, 1);
+    for (let r = 0; r <= rows; r++) {
+      ctx.fillRect(GRID.left, Math.floor(GRID.headBottom + rowH * r), GRID.right - GRID.left, 1);
     }
 
-    // Footer note with legend circle
-    if (settings.note) {
-      const fy = H - (H >= 1900 ? 220 : 70);
-      ctx.font = `500 30px ${maru}`;
-      const text = settings.note.replace(/^■\s*/, '');
-      const hasLegend = settings.note.startsWith('■');
-      const tw = ctx.measureText(text).width;
-      const lr = 18;
-      const total = tw + (hasLegend ? lr * 2 + 14 : 0);
-      let x = (W - total) / 2;
-      if (hasLegend) {
-        ctx.fillStyle = main;
-        ctx.beginPath(); ctx.arc(x + lr, fy, lr, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = bg;
-        ctx.font = `700 22px ${maru}`;
-        ctx.fillText('休', x + lr, fy + 1);
-        x += lr * 2 + 14;
-      }
-      ctx.fillStyle = main;
-      ctx.font = `500 30px ${maru}`;
-      ctx.textAlign = 'left';
-      ctx.fillText(text, x, fy);
-      ctx.textAlign = 'center';
+    const colorOf = (wd, holiday) => (wd === 0 || holiday ? COLOR.sun : wd === 6 ? COLOR.sat : COLOR.text);
+    WEEK.forEach((label, i) => {
+      text(label, GRID.left + colW * (i + 0.5), 388.7, { size: 38, color: colorOf(i, false), align: 'center' });
+    });
+
+    const closed = closedDays();
+    cells = [];
+    for (let d = 1; d <= days; d++) {
+      const idx = first + d - 1;
+      const wd = idx % 7;
+      const cx = GRID.left + colW * (wd + 0.5);
+      const top = GRID.headBottom + rowH * Math.floor(idx / 7);
+      cells.push({ d, x: cx - colW / 2, y: top, w: colW, h: rowH });
+      text(String(d), cx, top + 53.4 * s, { size: 40, color: colorOf(wd, isHoliday(year, month, d)), align: 'center' });
+      if (closed.has(d)) circle(cx, top + 103 * s, 35 * s, 34 * s);
+    }
+
+    // Footer: legend + business hours
+    circle(142.5, 1241, 35, 31);
+    text('...休業日', 188, 1256.1, { size: 33.5 });
+
+    const lines = settings.hours.split('\n').map((l) => l.trim()).filter(Boolean)
+      .map((l) => { const m = l.match(/^(\S+)\s+(.*)$/); return m ? [m[1], m[2]] : ['', l]; });
+    if (lines.length) {
+      const kanji = { size: 31 }, time = { size: 30, spacing: 0.33 }, lineH = 44;
+      const dayW = Math.max(...lines.map(([a]) => measure(a, kanji.size)));
+      const timeW = Math.max(...lines.map(([, b]) => measure(b, time.size, 400, time.spacing)));
+      const timeX = 992 - timeW; // right edge of the hours column
+      const dayX = timeX - (dayW ? dayW + 12.5 : 0);
+      const firstBase = 1254 - (lines.length - 1) * lineH / 2;
+      text('営業時間', dayX - 13.5 - measure('営業時間', kanji.size), 1255.6, kanji);
+      lines.forEach(([a, b], i) => {
+        const y = firstBase + i * lineH;
+        text(a, dayX, y + 1.6, kanji);
+        text(b, timeX, y, time);
+      });
     }
 
     $('monthLabel').textContent = `${year}年${month + 1}月`;
-    renderWeekdayButtons();
+    const isEdited = Boolean(edited[key()]);
+    $('status').textContent = isEdited ? 'この月は手動で変更しています' : '定休日のみ';
+    $('reset').disabled = !isEdited;
   }
 
-  function renderWeekdayButtons() {
-    const wrap = $('weekdays');
-    const off = offDays();
-    const days = new Date(year, month + 1, 0).getDate();
+  // Load the Noto Sans JP subsets for every character drawn, then draw
+  async function render() {
+    const chars = '営業日カレンダー0123456789日月火水木金土...休業時間' + settings.hours;
+    try {
+      await Promise.all([300, 400, 700].map((w) => document.fonts.load(`${w} 40px "Noto Sans JP"`, chars)));
+    } catch {}
+    draw();
+  }
+
+  // ---- Controls ----
+  function renderWeekly() {
+    const wrap = $('weekly');
     wrap.innerHTML = '';
-    WEEK_JA.forEach((label, wd) => {
-      const dates = [];
-      for (let d = 1; d <= days; d++) if (new Date(year, month, d).getDay() === wd) dates.push(d);
-      const allOn = dates.every((d) => off.has(d));
+    WEEK.forEach((label, wd) => {
+      const on = settings.weekly.includes(wd);
       const b = document.createElement('button');
       b.textContent = label;
-      b.className = allOn ? 'on' : '';
-      b.setAttribute('aria-pressed', allOn);
+      b.className = on ? 'on' : '';
+      b.setAttribute('aria-pressed', on);
       b.onclick = () => {
-        const set = offDays();
-        dates.forEach((d) => (allOn ? set.delete(d) : set.add(d)));
-        saveOff(set);
+        settings.weekly = on ? settings.weekly.filter((w) => w !== wd) : [...settings.weekly, wd];
+        saveSettings();
+        renderWeekly();
         draw();
       };
       wrap.appendChild(b);
     });
+    const names = settings.weekly.slice().sort().map((w) => WEEK[w]).join('・');
+    document.querySelector('.lead').textContent = names
+      ? `定休日（${names}）は最初から「休」が付いています。日付をタップすると「休」の付け外しができます。`
+      : '日付をタップすると「休」の付け外しができます。';
   }
 
   cv.addEventListener('click', (e) => {
@@ -364,19 +370,27 @@
     const y = (e.clientY - rect.top) * (cv.height / rect.height);
     const hit = cells.find((c) => x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h);
     if (!hit) return;
-    const set = offDays();
-    set.has(hit.d) ? set.delete(hit.d) : set.add(hit.d);
-    saveOff(set);
+    const set = closedDays();
+    if (set.has(hit.d)) set.delete(hit.d); else set.add(hit.d);
+    saveClosed(set);
     draw();
   });
 
   $('prev').onclick = () => { month--; if (month < 0) { month = 11; year--; } draw(); };
   $('next').onclick = () => { month++; if (month > 11) { month = 0; year++; } draw(); };
-  $('clear').onclick = () => {
-    if (confirm(`${year}年${month + 1}月の休みをすべて外しますか？`)) { saveOff(new Set()); draw(); }
+  $('reset').onclick = () => { delete edited[key()]; store.set('closed', edited); draw(); };
+
+  const hours = $('hours');
+  hours.value = settings.hours;
+  hours.addEventListener('input', () => { settings.hours = hours.value; saveSettings(); render(); });
+  $('hoursReset').onclick = () => {
+    settings.hours = hours.value = DEFAULTS.hours;
+    saveSettings();
+    render();
   };
 
-  $('download').onclick = () => {
+  $('download').onclick = async () => {
+    await render();
     cv.toBlob(async (blob) => {
       const name = `calendar-${key()}.png`;
       const file = new File([blob], name, { type: 'image/png' });
@@ -395,42 +409,9 @@
     }, 'image/png');
   };
 
-  $('logo').onchange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try { localStorage.setItem('bpcal:logo', reader.result); } catch {}
-      loadLogo(reader.result);
-    };
-    reader.readAsDataURL(file);
-  };
-  $('logoRemove').onclick = () => {
-    try { localStorage.removeItem('bpcal:logo'); } catch {}
-    $('logo').value = '';
-    loadLogo(null);
-  };
-
-  for (const id of ['shopName', 'note', 'size', 'mark', 'bgColor', 'mainColor']) {
-    const el = $(id);
-    el.value = settings[id];
-    el.addEventListener('input', () => { settings[id] = el.value; saveSettings(); draw(); });
-  }
-  $('resetColors').onclick = () => {
-    settings.bgColor = DEFAULTS.bgColor; settings.mainColor = DEFAULTS.mainColor;
-    $('bgColor').value = DEFAULTS.bgColor; $('mainColor').value = DEFAULTS.mainColor;
-    saveSettings(); draw();
-  };
-
+  renderWeekly();
   draw();
-  let logoSrc = null;
-  try { logoSrc = localStorage.getItem('bpcal:logo'); } catch {}
-  if (logoSrc) loadLogo(logoSrc);
-  // Redraw once web fonts are ready so the canvas uses them
-  Promise.all([
-    document.fonts.load('600 96px "Cormorant Garamond"'),
-    document.fonts.load('700 40px "Zen Maru Gothic"', '休'),
-  ]).catch(() => {}).finally(draw);
+  render();
 })();
 </script>
 </body>
